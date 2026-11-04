@@ -1,5 +1,40 @@
 # @emdash-cms/plugin-test
 
+## 0.2.12
+
+### Patch Changes
+
+- [#4358](https://github.com/emdash-cms/emdash/pull/4358) [`0008289`](https://github.com/emdash-cms/emdash/commit/0008289cca28c2618e4de40a6eb3159552321ef8) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes config-declared sandboxed plugins, including those running with `sandbox: false`, skipping `plugin:install` and `plugin:activate` on first boot. These hooks now run for plugins without a recorded state, including on the first start after upgrading, so activation hooks can set up recurring tasks without an admin disable/re-enable cycle.
+  
+  If a sandbox stops before setup finishes, `plugin:install` can run again on the next boot. Make install hooks safe to repeat when settings or plugin data already exist.
+  
+  `createPluginRuntimeTestHost()` also runs install → activate when creating a host, before test fixtures are added. A failure in the plugin's own lifecycle hook disables it in the test host, so later actions will not invoke its hooks. Tests that explicitly call `actions.plugin.activate()` should account for the initial activation.
+  
+  #### What should I do?
+  
+  Make install hooks set only missing values. If a plugin hook failed, fix the hook and re-enable the plugin from the Plugins page to run `plugin:activate` again.
+
+- [#4277](https://github.com/emdash-cms/emdash/pull/4277) [`26528bb`](https://github.com/emdash-cms/emdash/commit/26528bb0fd018472f9a2ccff880a0317ebca874a) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes `ctx.kv` values disappearing when a plugin with the same ID moves between `plugins: []` and `sandboxed: []`. **This storage migration requires a coordinated upgrade; it cannot be deployed as a rolling upgrade.**
+  
+  Both sandbox runners share the in-process KV store. A database migration copies existing non-`settings:` sandbox values and revisions without overwriting in-process values, warns about conflicting plugin IDs and keys, and retains the original sandbox rows for recovery. Uninstalling a marketplace or registry plugin with data deletion removes its shared KV values and settings; failed-install rollback preserves existing data, including partial writes made by an installation hook before it fails. Plugin-test KV fixtures and inspection use the shared store; use the settings inspection API for `settings:` keys.
+  
+  #### What should I do?
+  
+  1. Back up the database.
+  2. Stop all application instances and plugin jobs that write to it.
+  3. Upgrade `emdash` and your sandbox runner together, then build the site without starting it.
+  4. Run `pnpm emdash migrate` against the reviewed database target.
+  5. Resolve conflicting KV copies before plugins can write again.
+  6. Start or deploy the upgraded site.
+  
+  Do not rely on default `auto` migrations for this upgrade: they start plugins immediately after migrating, leaving no conflict-review window. Mixed package versions are not automatically rejected. See the [plugin upgrade guide](https://docs.emdashcms.com/plugins/upgrading-sites/#plugin-kv-storage-when-changing-execution-mode) for target selection, recovery queries, and rollback instructions. Downgrading packages alone hides post-upgrade KV writes; restoring the pre-upgrade database backup discards all site changes made since it was taken.
+- Updated dependencies [[`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902), [`118dcf9`](https://github.com/emdash-cms/emdash/commit/118dcf9caa3eb7c75a79bfcaee8aa736af9530e9), [`40e4400`](https://github.com/emdash-cms/emdash/commit/40e4400ea99b1448aa4c157028aae0d70bbfe163), [`2abe403`](https://github.com/emdash-cms/emdash/commit/2abe4037f589cfad92f6259e404230c806dccec1), [`daa6164`](https://github.com/emdash-cms/emdash/commit/daa61645afce1e56f69cbffcfc0f7adb6653515e), [`678a0c2`](https://github.com/emdash-cms/emdash/commit/678a0c2d33ed821d40da2f53141b5740b3dc7773), [`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610), [`5137be5`](https://github.com/emdash-cms/emdash/commit/5137be5b4e678c6e71e1daa83001e81009571692), [`679ad6c`](https://github.com/emdash-cms/emdash/commit/679ad6c4301047e5f99844ba357d3ef15dd87925), [`b331cf3`](https://github.com/emdash-cms/emdash/commit/b331cf3bfd67c3af03222e09b54b22de688c6bd0), [`235a11a`](https://github.com/emdash-cms/emdash/commit/235a11af21e801ec9f0195cdfc3d46f51341d526), [`98e0924`](https://github.com/emdash-cms/emdash/commit/98e0924dfde61966730a7361d1b4296dd1a72bbe), [`e30df1e`](https://github.com/emdash-cms/emdash/commit/e30df1ed488bbbae21669ecf169da3376989a69e), [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5), [`9699645`](https://github.com/emdash-cms/emdash/commit/9699645f8062794bf50183d5208dc61c4be33a6f), [`82eb778`](https://github.com/emdash-cms/emdash/commit/82eb778c8931ae6af16a85725617e4131d5a225e), [`e25d2ee`](https://github.com/emdash-cms/emdash/commit/e25d2ee7bf2da9a972923e2ee82fb5aa77265a89), [`5a9f1bd`](https://github.com/emdash-cms/emdash/commit/5a9f1bdef6ab92a2c286264aba98eab94bc19b36), [`6331f6b`](https://github.com/emdash-cms/emdash/commit/6331f6b4ba2c9f9d6eac778c2ee311e9cbd79768), [`fc44f40`](https://github.com/emdash-cms/emdash/commit/fc44f406c32e2997e9e7e96ace12f70b65293a13), [`b9fc5f2`](https://github.com/emdash-cms/emdash/commit/b9fc5f2b15444a4090f5e2e7ad7a0c36487c6228), [`c095458`](https://github.com/emdash-cms/emdash/commit/c095458800274d4c4c18c7b68a94df5a595b7ebb), [`b436669`](https://github.com/emdash-cms/emdash/commit/b436669627e29784019e1e0a4b23b09b532003cd), [`0c57c94`](https://github.com/emdash-cms/emdash/commit/0c57c94de64350880e7cb637a43d93c53bd93dcd), [`56c801c`](https://github.com/emdash-cms/emdash/commit/56c801cbe995d9a55368a53d541aab12901ac150), [`4e95f4f`](https://github.com/emdash-cms/emdash/commit/4e95f4f23d9efe288b255d5f94963f8f97dac27a), [`532e78b`](https://github.com/emdash-cms/emdash/commit/532e78bc3604b43cf9f51c3ed6e586f2f9d6ed68), [`5845694`](https://github.com/emdash-cms/emdash/commit/5845694c7991250484036551a96428f5ef96c5f3), [`c54ca68`](https://github.com/emdash-cms/emdash/commit/c54ca68b564719ea238d783dfd3fc3a7f9668f6c), [`3d569ab`](https://github.com/emdash-cms/emdash/commit/3d569ab609970195d0d8185fe36697420492664f), [`0008289`](https://github.com/emdash-cms/emdash/commit/0008289cca28c2618e4de40a6eb3159552321ef8), [`a7cf38f`](https://github.com/emdash-cms/emdash/commit/a7cf38fb8babfea53f9c10bf6b7eac53e40609b7), [`76c1936`](https://github.com/emdash-cms/emdash/commit/76c1936cd88fb2cd18b4c10d69c6d74d63eca233), [`34ff31a`](https://github.com/emdash-cms/emdash/commit/34ff31af2aa096d948ed5657cc409b679df393a9), [`26528bb`](https://github.com/emdash-cms/emdash/commit/26528bb0fd018472f9a2ccff880a0317ebca874a), [`44daa08`](https://github.com/emdash-cms/emdash/commit/44daa081c1e3c4428f791e0f27594bc5aed6d0fa)]:
+  - @emdash-cms/blocks@1.5.0
+  - emdash@1.5.0
+  - @emdash-cms/cloudflare@1.5.0
+  - @emdash-cms/plugin-cli@0.13.6
+  - @emdash-cms/plugin-types@0.6.1
+
 ## 0.2.11
 
 ### Patch Changes
