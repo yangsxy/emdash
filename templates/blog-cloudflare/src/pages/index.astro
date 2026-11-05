@@ -12,13 +12,18 @@ import { resolveBlogSiteIdentity } from "../utils/site-identity";
 // instead of fetching every post and discarding the tail in JS.
 const POSTS_PER_PAGE = 7;
 
-const [{ entries: posts, cacheHint }, settings] = await Promise.all([
-	getEmDashCollection("posts", {
-		orderBy: { published_at: "desc" },
-		limit: POSTS_PER_PAGE + 1, // +1 to detect "view all" need
-	}),
-	getSiteSettings(),
-]);
+const [{ entries: posts, cacheHint }, settings, { entries: hotPosts }] =
+	await Promise.all([
+		getEmDashCollection("posts", {
+			orderBy: { published_at: "desc" },
+			limit: POSTS_PER_PAGE + 1, // +1 to detect "view all" need
+		}),
+		getSiteSettings(),
+		getEmDashCollection("posts", {
+			orderBy: { published_at: "desc" },
+			limit: 5,
+		}),
+	]);
 const { siteTitle, siteTagline } = resolveBlogSiteIdentity(settings);
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
@@ -163,6 +168,40 @@ const gridPostsWithTags = gridPosts.map((post) => ({
 						</div>
 					</section>
 				)}
+
+				{hotPosts.length > 0 && (
+					<section class="band section" aria-labelledby="hot-posts">
+						<div class="frame">
+							<div class="section-head">
+								<h2 id="hot-posts" class="section-head__title">
+									一周热门排行
+								</h2>
+							</div>
+							<ol class="hot-rank">
+								{hotPosts.map((p, i) => (
+									<li class="hot-rank__item">
+										<span
+											class={`hot-rank__no hot-rank__no--${i + 1}`}
+										>
+											{i + 1}
+										</span>
+										<a
+											href={`/posts/${p.data.slug ?? p.data.id}`}
+											class="hot-rank__t"
+										>
+											{p.data.title}
+										</a>
+										{p.data.views != null && (
+											<span class="hot-rank__v">
+												阅读 ({p.data.views})
+											</span>
+										)}
+									</li>
+								))}
+							</ol>
+						</div>
+					</section>
+				)}
 			</>
 		)
 	}
@@ -179,6 +218,75 @@ const gridPostsWithTags = gridPosts.map((post) => ({
 	/* Lifts the pill from the line box's bottom onto the last line's baseline */
 	.home-intro__rss {
 		margin-block-end: var(--spacing-2);
+	}
+
+	/* 一周热门排行 */
+	.hot-rank {
+		list-style: none;
+		display: grid;
+		gap: 2px;
+		background: var(--color-surface);
+		border-radius: var(--radius-xl);
+		box-shadow: var(--shadow-card);
+		padding: var(--spacing-2) var(--spacing-5);
+	}
+
+	.hot-rank__item {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-4);
+		padding: var(--spacing-3) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.hot-rank__item:last-child {
+		border-bottom: 0;
+	}
+
+	.hot-rank__no {
+		width: 22px;
+		height: 22px;
+		flex: none;
+		display: grid;
+		place-items: center;
+		border-radius: 3px;
+		color: #fff;
+		font-size: 12px;
+		font-weight: 700;
+		background: var(--color-muted);
+	}
+
+	.hot-rank__no--1 {
+		background: var(--color-brand);
+	}
+
+	.hot-rank__no--2 {
+		background: #5cb85c;
+	}
+
+	.hot-rank__no--3 {
+		background: #428bca;
+	}
+
+	.hot-rank__t {
+		flex: 1;
+		min-width: 0;
+		font-size: 15px;
+		color: var(--color-text);
+		text-decoration: none;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.hot-rank__t:hover {
+		color: var(--color-brand);
+	}
+
+	.hot-rank__v {
+		font-size: 12px;
+		color: var(--color-muted);
+		flex: none;
 	}
 
 	@media (max-width: 720px) {
